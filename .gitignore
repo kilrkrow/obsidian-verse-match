@@ -1,0 +1,6 @@
+node_modules/
+cache-*.json
+complete.simple.json
+*.simple.json
+.obsidian/
+*.dmp

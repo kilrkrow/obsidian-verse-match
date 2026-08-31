@@ -1,0 +1,14 @@
+.verse-match-modal .modal-content { padding-top: 0.5em; }
+.verse-match-kicker { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0.85em 0 0.4em; }
+.verse-match-selected { background: var(--background-modifier-form-field); border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 8px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.verse-match-candidates { display: flex; flex-direction: column; gap: 2px; max-height: 360px; overflow: auto; margin-bottom: 1em; }
+.verse-match-row { border-radius: 6px; padding: 8px 10px 8px 12px; cursor: pointer; border-left: 3px solid transparent; }
+.verse-match-row:hover { background: var(--background-modifier-hover); }
+.verse-match-row.is-selected { background: var(--background-modifier-hover); border-left-color: var(--interactive-accent); }
+.verse-match-ref { color: var(--text-accent); font-size: 0.92em; margin-bottom: 2px; }
+.verse-match-text { color: var(--text-normal); font-size: 0.92em; line-height: 1.35; }
+.verse-match-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.verse-match-footer .setting-item { border: none; padding: 0; }
+.verse-match-footer-right { display: flex; gap: 8px; align-items: center; }
+
+.verse-match-highlight { border: none; padding: 0.4em 0 0.8em; }
