@@ -1,0 +1,64 @@
+name: Release
+
+# Attaches an attested, CI-built plugin bundle to a GitHub release.
+# Guy drafts the release on GitHub, attaches nothing, this Action fills the assets.
+#
+# Release from the GitHub website: bump manifest.json (commit to main), then
+# Releases -> "Draft a new release" -> create a new tag matching the version
+# (e.g. 0.1.0), target main, and Publish. You do NOT need to attach any files --
+# this workflow builds them in CI, attests their provenance, and uploads them.
+# Because provenance is tied to the workflow's OIDC identity, the artifacts must
+# be built here (not locally) for `gh attestation verify` to succeed.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write        # upload release assets
+  id-token: write        # OIDC token for provenance
+  attestations: write    # write the attestation
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the released tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify manifest.json version matches the release tag
+        run: |
+          MANIFEST_VERSION="$(node -p "require('./manifest.json').version")"
+          TAG="${{ github.event.release.tag_name }}"
+          if [ "$MANIFEST_VERSION" != "$TAG" ]; then
+            echo "::error::manifest.json version ($MANIFEST_VERSION) does not match release tag ($TAG)"
+            exit 1
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            styles.css
+
+      - name: Upload assets to the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload "${{ github.event.release.tag_name }}"
+          main.js manifest.json styles.css --clobber

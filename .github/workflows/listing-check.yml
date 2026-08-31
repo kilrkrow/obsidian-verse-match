@@ -1,0 +1,87 @@
+name: Listing check
+
+# Catches the two ways users silently lose the plugin:
+#
+#   1. manifest.json on main names a version that has no matching GitHub
+#      release. Obsidian resolves the download by manifest version, so a
+#      version with no release means it cannot scan or distribute us, and its
+#      mirror drops us from community-plugins.json. This is exactly what
+#      happened to 1.8.0: bumped 2026-08-05, delisted 2026-08-06.
+#   2. Community listing is SKIPPED for now: Verse Match is not listed yet,
+#      and a daily fail/issue would be noise.
+#
+# release.yml already checks tag -> manifest when a release is published. That
+# is the opposite direction and cannot catch a bump that was never released,
+# because nothing runs. This checks manifest -> release on
+# a timer, so an unreleased bump cannot sit unnoticed.
+#
+# A push that touches manifest.json only fails the run (red X on main): a bump
+# merged a few minutes before you publish the release is briefly and
+# legitimately red, and it goes green by itself on the next scheduled run.
+# Does NOT open issues (Verse Match is not listed yet).
+
+on:
+  push:
+    branches: [main]
+    paths: ["manifest.json"]
+  schedule:
+    - cron: "17 14 * * *" # 14:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check release and listing
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          VERSION="$(jq -r .version manifest.json)"
+          PLUGIN_ID="$(jq -r .id manifest.json)"
+          echo "manifest.json: id=$PLUGIN_ID version=$VERSION"
+
+          : > problems.md
+
+          if gh release view "$VERSION" --json tagName > /dev/null 2>&1; then
+            ASSETS="$(gh release view "$VERSION" --json assets --jq '[.assets[].name] | join(" ")')"
+            echo "release $VERSION assets: $ASSETS"
+            for WANT in main.js manifest.json styles.css; do
+              case " $ASSETS " in
+                *" $WANT "*) ;;
+                *) echo "- Release \`$VERSION\` is missing the \`$WANT\` asset. Obsidian installs it from the release, so users get a broken install. Present: \`$ASSETS\`" >> problems.md ;;
+              esac
+            done
+          else
+            echo "- \`manifest.json\` on \`main\` says \`$VERSION\`, but no GitHub release is tagged \`$VERSION\`. Obsidian resolves the download by manifest version, so it cannot scan or distribute the plugin and will drop it from the community list. Publish a release tagged \`$VERSION\` (no \`v\` prefix)." >> problems.md
+          fi
+
+          if [ -s problems.md ]; then
+            {
+              echo "## Verse Match is at risk of delisting"
+              echo
+              cat problems.md
+              echo
+              echo "Checked \`$PLUGIN_ID\` at manifest version \`$VERSION\` from ${{ github.sha }}."
+            } > report.md
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          else
+            echo "## Verse Match listing is healthy" > report.md
+            echo "" >> report.md
+            echo "Release \`$VERSION\` exists with all assets. Community listing is skipped until Verse Match is submitted." >> report.md
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if anything is wrong
+        if: steps.check.outputs.status == 'fail'
+        run: exit 1

@@ -1,4 +1,4 @@
-﻿# Verse Match
+# Verse Match
 
 Obsidian plugin that matches selected prose to scripture. Companion to [Bible Verse](https://github.com/kilrkrow/obsidian-bible-verse).
 
@@ -30,6 +30,15 @@ The settings toggle is **Attempt to highlight the relevant portion of the verse*
 
 1. Copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/verse-match/`
 2. Enable **Verse Match** in Obsidian Settings, Community plugins
+
+
+## Releasing
+
+Bump `manifest.json` on `main` (and `package.json` if you keep versions in sync). Then on GitHub: **Releases -> Draft a new release**. Tag = the version with no `v` prefix (currently `0.1.0`), target `main`, Publish, attach nothing.
+
+`.github/workflows/release.yml` builds `main.js` / `styles.css` in CI, attests provenance, and uploads `main.js`, `manifest.json`, and `styles.css` onto that release.
+
+Do not attach local builds. Provenance is tied to the Action's OIDC identity.
 
 ## License
 
