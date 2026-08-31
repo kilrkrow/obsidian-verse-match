@@ -25,6 +25,16 @@ const DEFAULT_SETTINGS: VerseMatchSettings = {
   highlightGist: true,
 };
 
+
+function parseSettings(raw: unknown): VerseMatchSettings {
+  const src = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    backend: src.backend === "http" ? "http" : DEFAULT_SETTINGS.backend,
+    customApiUrl: typeof src.customApiUrl === "string" ? src.customApiUrl : DEFAULT_SETTINGS.customApiUrl,
+    highlightGist: typeof src.highlightGist === "boolean" ? src.highlightGist : DEFAULT_SETTINGS.highlightGist,
+  };
+}
+
 export default class VerseMatchPlugin extends Plugin {
   settings: VerseMatchSettings = { ...DEFAULT_SETTINGS };
 
@@ -53,7 +63,7 @@ export default class VerseMatchPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = parseSettings(await this.loadData());
   }
 
   async saveSettings(): Promise<void> {
@@ -264,6 +274,38 @@ class VerseMatchSettingTab extends PluginSettingTab {
   constructor(app: App, plugin: VerseMatchPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+
+  getSettingDefinitions() {
+    return [
+      {
+        name: "Search backend",
+        desc: "Local cache is the default. Custom API is a drop-in for a later Worker.",
+        control: {
+          type: "dropdown" as const,
+          key: "backend",
+          options: { local: "Local cache", http: "Custom API" },
+        },
+      },
+      {
+        name: "Custom API URL",
+        desc: "Planned verse search API; leave empty until the host exists.",
+        control: {
+          type: "text" as const,
+          key: "customApiUrl",
+          placeholder: "https://verseapi.org",
+        },
+      },
+      {
+        name: "Attempt to highlight the relevant portion of the verse",
+        desc: "When on, inserts a baked bible code block with ==gist== around the best overlapping span. When off, inserts {John 3:16}.",
+        control: {
+          type: "toggle" as const,
+          key: "highlightGist",
+        },
+      },
+    ];
   }
 
   display(): void {

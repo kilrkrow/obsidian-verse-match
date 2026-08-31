@@ -1,11 +1,11 @@
-﻿{
+{
   "name": "obsidian-verse-match",
   "version": "0.1.0",
   "description": "Match highlighted prose to HelloAO scripture and replace with bible-verse tokens.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "test": "node --import tsx --test src/classifier.test.ts src/search-backend.test.ts src/gist.test.ts"
   },
   "keywords": ["obsidian"],
