@@ -1,7 +1,7 @@
 {
   "id": "verse-match",
   "name": "Verse Match",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.4.0",
   "description": "Match highlighted prose to scripture and replace each sentence with a {John 3:16} token for Bible Verse.",
   "author": "kilrkrow",
