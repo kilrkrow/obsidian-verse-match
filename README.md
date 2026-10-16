@@ -1,21 +1,26 @@
 # Verse Match
 
-Obsidian plugin that matches selected prose to scripture. Companion to [Bible Verse](https://github.com/kilrkrow/obsidian-bible-verse).
+Highlight prose in Obsidian to find matching Bible verses and insert them as formatted citations.
 
-Highlight a sentence, run **Match selection to scripture** (command or editor context menu). Unique matches replace immediately. Ambiguous matches open a chooser (`1/3`). Skip, Cancel, or Insert.
+Looking up scripture references while writing means switching apps, searching, copying, formatting — and then losing your train of thought. Verse Match searches a local cache and inserts a formatted ` ```bible ` block without leaving your vault.
 
-## Backends
+## What it does
 
-**Local cache is the default.** HelloAO has dumps, not a search HTTP route, so the plugin downloads `complete.simple.json` once per translation and caches an index beside the plugin.
+- **Highlight to search** — select any sentence, run "Match selection to scripture" from the command palette or editor context menu
+- **Local-first** — downloads the translation index once and searches it locally; no API key, no outbound request per lookup
+- **Chooser for ambiguous matches** — when multiple verses match, a numbered picker (`1/3`) lets you skip, cancel or insert the right one
+- **Formatted output** — inserts a ` ```bible ` fence with the verse text and optional `==gist==` highlighting around the overlapping span
+- **Custom API backend** — point the plugin at your own search endpoint in settings; falls back to local cache on failure
+- **Reads `bible-verse` translation setting** — picks up the `defaultTranslation` from the companion plugin automatically (falls back to KJV)
 
-**Custom API** is a drop-in in settings (placeholder `https://verseapi.org`). Leave the URL empty, or if the request fails, Verse Match falls back to the local cache.
+## Quick start
 
-Reads bible-verse `defaultTranslation` (falls back to KJV). Does not modify bible-verse. No API keys.
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/kilrkrow/obsidian-verse-match/releases)
+2. Copy them into `<vault>/.obsidian/plugins/verse-match/`
+3. Enable **Verse Match** in Obsidian Settings > Community plugins
+4. Highlight a sentence in any note and run **Match selection to scripture**
 
-## Inserts
-
-- Highlight off: `{John 3:16}`
-- Highlight on (default): a baked ```bible fence with optional `==gist==` around the overlapping span
+Example output:
 
 ```bible
 John 3:16
@@ -24,22 +29,20 @@ translation: KJV
 16. ==For God so loved the world==, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.
 ```
 
-The settings toggle is **Attempt to highlight the relevant portion of the verse**. The chooser checkbox starts from that setting and can differ per insert.
+## Backends
 
-## Install
+**Local cache (default):** downloads `complete.simple.json` for the active translation on first use and builds a search index beside the plugin. No API key required.
 
-1. Copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/verse-match/`
-2. Enable **Verse Match** in Obsidian Settings, Community plugins
-
-
-## Releasing
-
-Bump `manifest.json` on `main` (and `package.json` if you keep versions in sync). Then on GitHub: **Releases -> Draft a new release**. Tag = the version with no `v` prefix (currently `0.1.0`), target `main`, Publish, attach nothing.
-
-`.github/workflows/release.yml` builds `main.js` / `styles.css` in CI, attests provenance, and uploads `main.js`, `manifest.json`, and `styles.css` onto that release.
-
-Do not attach local builds. Provenance is tied to the Action's OIDC identity.
+**Custom API:** enter a base URL in settings (e.g. `https://verseapi.org`). Leave it empty or let a request fail to fall back to local cache.
 
 ## License
 
-[GPL-3.0](LICENSE) (same as Bible Verse)
+[GPL-3.0](LICENSE)
+
+## Feedback
+
+Questions, ideas and bug reports are welcome in [Issues](https://github.com/kilrkrow/obsidian-verse-match/issues).
+
+---
+
+Built by Guy Schamp · [Fox & Dove](https://foxanddoveconsulting.com) · more tools at [github.com/kilrkrow](https://github.com/kilrkrow)
