@@ -1,8 +1,8 @@
 ﻿# Cloudflare verse search API: lift estimate
 
-Go/no-go scope only. No Worker, no wrangler, no new paid Cloudflare resources. Consumer is Verse Match (`D:\_dev\obsidian-verse-match`). Do not change that plugin until Guy says go.
+Go/no-go scope only. No Worker, no wrangler, no new paid Cloudflare resources. Consumer is Verse Match (`D:\_dev\obsidian-verse-match`). Do not change that plugin until kilrkrow says go.
 
-Tennoshare as built is Express + Postgres + Docker/Portainer, Cloudflare Tunnel + Access, GHCR, git-backed CI. The shape Guy means here is the *other* Tennoshare: a git repo, push deploys to the Cloudflare edge, small API, no VPS.
+Tennoshare as built is Express + Postgres + Docker/Portainer, Cloudflare Tunnel + Access, GHCR, git-backed CI. The shape kilrkrow means here is the *other* Tennoshare: a git repo, push deploys to the Cloudflare edge, small API, no VPS.
 
 ## Cost (read this first)
 
@@ -136,7 +136,7 @@ Rate limit with Cloudflare's built-in WAF/rate limiting on the free plan if it e
 
 **Time:** about a day, not a week. Half a day for Worker + D1 schema + loader Action + a curl that returns John 3:16. A couple of hours to point Verse Match at it with the local cache as fallback. Buffer a half day for D1 bulk-insert quirks and FTS ranking.
 
-**Free-tier fit:** serving searches is free. The write cap is the landmine; details in Cost. No Vectorize, no Workers AI, no paid zone required. Use the existing kilrkrow Cloudflare account. No new paid resources unless Guy chooses Paid for a full rebuild.
+**Free-tier fit:** serving searches is free. The write cap is the landmine; details in Cost. No Vectorize, no Workers AI, no paid zone required. Use the existing kilrkrow Cloudflare account. No new paid resources unless kilrkrow chooses Paid for a full rebuild.
 
 **Legal leftover:** serving KJV (US), WEB, ASV, and BSB text from our edge is the same class of use as HelloAO already documents (no key, no commercial restriction on those texts). Keep attribution in README (`text from HelloAO / respective PD licenses`). Recheck BSB terms once at go time; if anything looks off, drop BSB and keep the three PD translations. Never add ESV via a plugin-held API.Bible or Crossway key.
 
@@ -153,6 +153,6 @@ Rate limit with Cloudflare's built-in WAF/rate limiting on the free plan if it e
 
 ## Go / no-go
 
-Go if Guy wants verse-match queries to hit the edge instead of a 20MB first-run download, and is fine with four free/PD translations only.
+Go if kilrkrow wants verse-match queries to hit the edge instead of a 20MB first-run download, and is fine with four free/PD translations only.
 
 No-go if the local cache is good enough, or if he wants NIV/ESV in the index. That second path is a publisher license, not a Worker.

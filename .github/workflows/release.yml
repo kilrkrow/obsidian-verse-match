@@ -1,7 +1,7 @@
 name: Release
 
 # Attaches an attested, CI-built plugin bundle to a GitHub release.
-# Guy drafts the release on GitHub, attaches nothing, this Action fills the assets.
+# kilrkrow drafts the release on GitHub, attaches nothing, this Action fills the assets.
 #
 # Release from the GitHub website: bump manifest.json (commit to main), then
 # Releases -> "Draft a new release" -> create a new tag matching the version
