@@ -1,5 +1,7 @@
 import type { IndexedVerse } from "./helloao";
 import { classify, formatToken } from "./classifier";
+import { API_URL_REJECTED_NOTICE, isAllowedApiUrl } from "./url-policy";
+import { UnsafeRedirectError } from "./safe-request";
 
 export interface SearchMatch {
   book: string;
@@ -71,7 +73,10 @@ export class HttpSearchBackend implements SearchBackend {
   ) {}
 
   async search(query: string, translationId: string, limit = 8): Promise<SearchResult> {
-    const base = this.baseUrl.replace(/\/+$/, "");
+    if (!isAllowedApiUrl(this.baseUrl)) {
+      throw new Error(API_URL_REJECTED_NOTICE);
+    }
+    const base = this.baseUrl.trim().replace(/\/+$/, "");
     const url =
       `${base}/search?q=${encodeURIComponent(query)}` +
       `&translation=${encodeURIComponent(translationId)}` +
@@ -97,6 +102,30 @@ function isSearchMatch(m: unknown): m is SearchMatch {
   );
 }
 
+/** Brace reference only, e.g. {John 3:16}, {1 John 1:9-10}, {Psalm 23:1, KJV}. */
+const TOKEN_RE = /^\{[1-3]? ?[A-Za-z][A-Za-z .]{0,39} \d{1,3}:\d{1,3}(-\d{1,3})?(, ?[A-Z0-9_]{1,16})?\}$/;
+/** Short plain book name, e.g. John, 1 Samuel, Song of Solomon. */
+const BOOK_RE = /^[1-3]? ?[A-Za-z][A-Za-z .]{0,39}$/;
+/** Translation abbreviation, e.g. KJV, BSB. */
+const ABBR_RE = /^[A-Za-z0-9_]{1,16}$/;
+
+function isRefNumber(n: number): boolean {
+  return Number.isInteger(n) && n > 0 && n < 1000;
+}
+
+/** Content checks for a Custom API match; anything that fails is dropped. */
+export function isSafeMatch(m: SearchMatch): boolean {
+  return (
+    m.token.length <= 64 &&
+    TOKEN_RE.test(m.token) &&
+    BOOK_RE.test(m.book) &&
+    isRefNumber(m.chapter) &&
+    isRefNumber(m.verse) &&
+    Number.isFinite(m.score) &&
+    m.text.length <= 4000
+  );
+}
+
 export function parseSearchResponse(json: unknown, fallbackQuery: string): SearchResult {
   if (!json || typeof json !== "object") {
     throw new Error("Search API: invalid JSON");
@@ -110,6 +139,7 @@ export function parseSearchResponse(json: unknown, fallbackQuery: string): Searc
     if (!isSearchMatch(m)) {
       throw new Error("Search API: bad match shape");
     }
+    if (!isSafeMatch(m)) continue;
     matches.push({
       book: m.book,
       chapter: m.chapter,
@@ -121,8 +151,37 @@ export function parseSearchResponse(json: unknown, fallbackQuery: string): Searc
   }
   return {
     translation: typeof o.translation === "string" ? o.translation : "",
-    abbr: typeof o.abbr === "string" ? o.abbr : "",
+    abbr: typeof o.abbr === "string" && ABBR_RE.test(o.abbr) ? o.abbr : "",
     query: typeof o.query === "string" ? o.query : fallbackQuery,
     matches,
   };
+}
+
+/**
+ * Uses `primary` until it fails once, then `fallback` for the rest of the run.
+ * Shows one notice: the redirect refusal message, or a generic failure.
+ */
+export class FallbackSearchBackend implements SearchBackend {
+  private useFallback = false;
+  private noticed = false;
+
+  constructor(
+    private readonly primary: SearchBackend,
+    private readonly fallback: SearchBackend,
+    private readonly notify: (msg: string) => void
+  ) {}
+
+  async search(query: string, translationId: string, limit?: number): Promise<SearchResult> {
+    if (this.useFallback) return this.fallback.search(query, translationId, limit);
+    try {
+      return await this.primary.search(query, translationId, limit);
+    } catch (e) {
+      this.useFallback = true;
+      if (!this.noticed) {
+        this.noticed = true;
+        this.notify(e instanceof UnsafeRedirectError ? e.message : "Custom API failed; using local cache.");
+      }
+      return this.fallback.search(query, translationId, limit);
+    }
+  }
 }

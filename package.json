@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "test": "node --import tsx --test src/classifier.test.ts src/search-backend.test.ts src/gist.test.ts"
+    "test": "node --import tsx --test src/classifier.test.ts src/search-backend.test.ts src/gist.test.ts src/url-policy.test.ts src/safe-request.test.ts src/transport.test.ts"
   },
   "keywords": ["obsidian"],
   "license": "GPL-3.0",

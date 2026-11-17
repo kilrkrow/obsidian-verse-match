@@ -1,10 +1,11 @@
-import { Notice, Plugin, PluginSettingTab, Setting, requestUrl } from "obsidian";
+import { Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import { abbrForId, DEFAULT_TRANSLATION_ID, HELLOAO_TRANSLATIONS } from "./translations";
 import { loadIndex } from "./helloao";
 import { splitSentences } from "./sentences";
 import { ScriptureChooserModal } from "./chooser-modal";
 import {
+  FallbackSearchBackend,
   HttpSearchBackend,
   LocalCacheBackend,
   decideKind,
@@ -12,6 +13,14 @@ import {
   type SearchMatch,
 } from "./search-backend";
 import { formatInsert } from "./gist";
+import { safeRequest } from "./safe-request";
+import { createTransport } from "./transport";
+import {
+  API_URL_REJECTED_NOTICE,
+  apiUrlValidationMessage,
+  isAllowedApiUrl,
+  validateApiUrlSetting,
+} from "./url-policy";
 
 interface VerseMatchSettings {
   backend: "local" | "http";
@@ -125,29 +134,15 @@ export default class VerseMatchPlugin extends Plugin {
       new Notice("Custom API URL is empty; using local cache.");
       return local;
     }
+    if (!isAllowedApiUrl(base)) {
+      new Notice(`${API_URL_REJECTED_NOTICE} Using local cache.`);
+      return local;
+    }
 
-    const http = new HttpSearchBackend(base, async (url) => {
-      const res = await requestUrl({ url });
-      return { status: res.status, json: res.json };
-    });
-
-    let useLocal = false;
-    let noticed = false;
-    return {
-      search: async (query, translationId, limit) => {
-        if (useLocal) return local.search(query, translationId, limit);
-        try {
-          return await http.search(query, translationId, limit);
-        } catch {
-          useLocal = true;
-          if (!noticed) {
-            noticed = true;
-            new Notice("Custom API failed; using local cache.");
-          }
-          return local.search(query, translationId, limit);
-        }
-      },
-    };
+    // Redirect-aware request: every hop must pass the URL policy (no silent https -> http).
+    const transport = createTransport();
+    const http = new HttpSearchBackend(base, (url) => safeRequest(url, transport));
+    return new FallbackSearchBackend(http, local, (msg) => new Notice(msg));
   }
 
   private bake(match: SearchMatch, sentence: string, highlight: boolean, abbr: string): string {
@@ -295,6 +290,8 @@ class VerseMatchSettingTab extends PluginSettingTab {
           type: "text" as const,
           key: "customApiUrl",
           placeholder: "https://verseapi.org",
+          // Shown inline under the field; Obsidian does not display Notice toasts while Settings is open.
+          validate: (v: string) => apiUrlValidationMessage(v),
         },
       },
       {
@@ -306,6 +303,19 @@ class VerseMatchSettingTab extends PluginSettingTab {
         },
       },
     ];
+  }
+
+
+  /** Declarative-settings write path: never persist a refused Custom API URL. */
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    if (key === "customApiUrl") {
+      const raw = typeof value === "string" ? value.trim() : "";
+      if (raw && !isAllowedApiUrl(raw)) return;
+      this.plugin.settings.customApiUrl = raw;
+      await this.plugin.saveSettings();
+      return;
+    }
+    await super.setControlValue(key, value);
   }
 
   display(): void {
@@ -331,8 +341,15 @@ class VerseMatchSettingTab extends PluginSettingTab {
       .addText((t) => {
         t.setPlaceholder("https://verseapi.org");
         t.setValue(this.plugin.settings.customApiUrl);
-        t.onChange(async (v) => {
-          this.plugin.settings.customApiUrl = v;
+        // Validate and save when the edit is committed (blur or Enter), not per keystroke.
+        t.inputEl.addEventListener("change", async () => {
+          const next = validateApiUrlSetting(t.getValue(), (msg) => new Notice(msg));
+          if (next === null) {
+            t.setValue(this.plugin.settings.customApiUrl);
+            return;
+          }
+          this.plugin.settings.customApiUrl = next;
+          t.setValue(next);
           await this.plugin.saveSettings();
         });
       });
