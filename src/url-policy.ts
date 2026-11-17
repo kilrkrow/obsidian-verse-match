@@ -36,3 +36,10 @@ export function validateApiUrlSetting(raw: string, notify: (msg: string) => void
   }
   return value;
 }
+
+/** Inline validation message for the setting field; undefined when the value is acceptable. */
+export function apiUrlValidationMessage(raw: string): string | undefined {
+  const value = (raw || "").trim();
+  if (!value || isAllowedApiUrl(value)) return undefined;
+  return API_URL_REJECTED_NOTICE;
+}

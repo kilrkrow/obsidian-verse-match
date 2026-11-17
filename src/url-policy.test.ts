@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { API_URL_REJECTED_NOTICE, isAllowedApiUrl, validateApiUrlSetting } from "./url-policy";
+import { API_URL_REJECTED_NOTICE, apiUrlValidationMessage, isAllowedApiUrl, validateApiUrlSetting } from "./url-policy";
 
 test("isAllowedApiUrl accepts https and local http only", () => {
   assert.equal(isAllowedApiUrl("https://verseapi.org"), true);
@@ -32,4 +32,10 @@ test("validateApiUrlSetting saves https and empty without a notice", () => {
   assert.equal(validateApiUrlSetting(" https://verseapi.org ", (m) => notices.push(m)), "https://verseapi.org");
   assert.equal(validateApiUrlSetting("", (m) => notices.push(m)), "");
   assert.equal(notices.length, 0);
+});
+test("apiUrlValidationMessage flags http://example.com only", () => {
+  assert.equal(apiUrlValidationMessage("http://example.com"), API_URL_REJECTED_NOTICE);
+  assert.equal(apiUrlValidationMessage("https://verseapi.org"), undefined);
+  assert.equal(apiUrlValidationMessage("http://localhost:8787"), undefined);
+  assert.equal(apiUrlValidationMessage(""), undefined);
 });

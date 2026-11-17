@@ -12,7 +12,12 @@ import {
   type SearchMatch,
 } from "./search-backend";
 import { formatInsert } from "./gist";
-import { API_URL_REJECTED_NOTICE, isAllowedApiUrl, validateApiUrlSetting } from "./url-policy";
+import {
+  API_URL_REJECTED_NOTICE,
+  apiUrlValidationMessage,
+  isAllowedApiUrl,
+  validateApiUrlSetting,
+} from "./url-policy";
 
 interface VerseMatchSettings {
   backend: "local" | "http";
@@ -300,6 +305,8 @@ class VerseMatchSettingTab extends PluginSettingTab {
           type: "text" as const,
           key: "customApiUrl",
           placeholder: "https://verseapi.org",
+          // Shown inline under the field; Obsidian does not display Notice toasts while Settings is open.
+          validate: (v: string) => apiUrlValidationMessage(v),
         },
       },
       {
@@ -312,6 +319,7 @@ class VerseMatchSettingTab extends PluginSettingTab {
       },
     ];
   }
+
 
   /** Declarative-settings write path: never persist a refused Custom API URL. */
   async setControlValue(key: string, value: unknown): Promise<void> {
