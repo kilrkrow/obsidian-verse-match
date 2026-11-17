@@ -1,6 +1,7 @@
 import type { IndexedVerse } from "./helloao";
 import { classify, formatToken } from "./classifier";
 import { API_URL_REJECTED_NOTICE, isAllowedApiUrl } from "./url-policy";
+import { UnsafeRedirectError } from "./safe-request";
 
 export interface SearchMatch {
   book: string;
@@ -154,4 +155,33 @@ export function parseSearchResponse(json: unknown, fallbackQuery: string): Searc
     query: typeof o.query === "string" ? o.query : fallbackQuery,
     matches,
   };
+}
+
+/**
+ * Uses `primary` until it fails once, then `fallback` for the rest of the run.
+ * Shows one notice: the redirect refusal message, or a generic failure.
+ */
+export class FallbackSearchBackend implements SearchBackend {
+  private useFallback = false;
+  private noticed = false;
+
+  constructor(
+    private readonly primary: SearchBackend,
+    private readonly fallback: SearchBackend,
+    private readonly notify: (msg: string) => void
+  ) {}
+
+  async search(query: string, translationId: string, limit?: number): Promise<SearchResult> {
+    if (this.useFallback) return this.fallback.search(query, translationId, limit);
+    try {
+      return await this.primary.search(query, translationId, limit);
+    } catch (e) {
+      this.useFallback = true;
+      if (!this.noticed) {
+        this.noticed = true;
+        this.notify(e instanceof UnsafeRedirectError ? e.message : "Custom API failed; using local cache.");
+      }
+      return this.fallback.search(query, translationId, limit);
+    }
+  }
 }
