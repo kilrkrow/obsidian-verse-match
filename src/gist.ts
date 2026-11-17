@@ -80,10 +80,26 @@ export function formatInsert(
   opts: { highlight: boolean; abbr: string; calloutType?: string }
 ): string {
   if (!opts.highlight) return match.token;
-  const cleaned = match.text.replace(/^[\u00b6\s]+/, "");
+  const cleaned = oneLine(match.text).replace(/^[\u00b6\s]+/, "");
   const span = findGistSpan(sentence, cleaned);
   const body = wrapGist(cleaned, span);
-  const ref = `${match.book} ${match.chapter}:${match.verse}`;
-  const numbered = `${match.verse}. ${body}`;
-  return ["```bible", ref, `translation: ${opts.abbr}`, "---", numbered, "```"].join("\n");
+  const ref = oneLine(`${match.book} ${match.chapter}:${match.verse}`);
+  const numbered = `${oneLine(String(match.verse))}. ${body}`;
+  const inner = [ref, `translation: ${oneLine(opts.abbr)}`, "---", numbered];
+  const fence = fenceFor(inner);
+  return [`${fence}bible`, ...inner, fence].join("\n");
+}
+
+/** Collapse any line break so a field cannot start a new line inside (or after) the fence. */
+function oneLine(s: string): string {
+  return s.replace(/[\r\n\u0085\u2028\u2029]+/g, " ");
+}
+
+/** A backtick fence longer than any backtick run in the content (minimum 3). */
+function fenceFor(lines: string[]): string {
+  let longest = 0;
+  for (const line of lines) {
+    for (const run of line.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
+  }
+  return "`".repeat(Math.max(3, longest + 1));
 }

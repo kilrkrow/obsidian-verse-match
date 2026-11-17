@@ -12,6 +12,7 @@ import {
   type SearchMatch,
 } from "./search-backend";
 import { formatInsert } from "./gist";
+import { API_URL_REJECTED_NOTICE, isAllowedApiUrl, validateApiUrlSetting } from "./url-policy";
 
 interface VerseMatchSettings {
   backend: "local" | "http";
@@ -123,6 +124,10 @@ export default class VerseMatchPlugin extends Plugin {
     const base = (this.settings.customApiUrl || "").trim();
     if (!base) {
       new Notice("Custom API URL is empty; using local cache.");
+      return local;
+    }
+    if (!isAllowedApiUrl(base)) {
+      new Notice(`${API_URL_REJECTED_NOTICE} Using local cache.`);
       return local;
     }
 
@@ -308,6 +313,18 @@ class VerseMatchSettingTab extends PluginSettingTab {
     ];
   }
 
+  /** Declarative-settings write path: never persist a refused Custom API URL. */
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    if (key === "customApiUrl") {
+      const raw = typeof value === "string" ? value.trim() : "";
+      if (raw && !isAllowedApiUrl(raw)) return;
+      this.plugin.settings.customApiUrl = raw;
+      await this.plugin.saveSettings();
+      return;
+    }
+    await super.setControlValue(key, value);
+  }
+
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
@@ -331,8 +348,15 @@ class VerseMatchSettingTab extends PluginSettingTab {
       .addText((t) => {
         t.setPlaceholder("https://verseapi.org");
         t.setValue(this.plugin.settings.customApiUrl);
-        t.onChange(async (v) => {
-          this.plugin.settings.customApiUrl = v;
+        // Validate and save when the edit is committed (blur or Enter), not per keystroke.
+        t.inputEl.addEventListener("change", async () => {
+          const next = validateApiUrlSetting(t.getValue(), (msg) => new Notice(msg));
+          if (next === null) {
+            t.setValue(this.plugin.settings.customApiUrl);
+            return;
+          }
+          this.plugin.settings.customApiUrl = next;
+          t.setValue(next);
           await this.plugin.saveSettings();
         });
       });

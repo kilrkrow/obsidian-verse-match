@@ -102,3 +102,64 @@ test("decideKind none / choice / exact", () => {
   ];
   assert.equal(decideKind(choice), "choice");
 });
+
+test("HttpSearchBackend makes no request to a plain http URL", async () => {
+  let calls = 0;
+  const backend = new HttpSearchBackend("http://example.com", async () => {
+    calls++;
+    return { status: 200, json: fixture };
+  });
+  await assert.rejects(() => backend.search("q", "eng_kjv"), /https/);
+  assert.equal(calls, 0);
+});
+
+test("HttpSearchBackend allows http://localhost for development", async () => {
+  let calls = 0;
+  const backend = new HttpSearchBackend("http://localhost:8787", async () => {
+    calls++;
+    return { status: 200, json: fixture };
+  });
+  const r = await backend.search("For God so loved the world", "eng_kjv");
+  assert.equal(calls, 1);
+  assert.equal(r.matches[0].token, "{John 3:16}");
+});
+
+function withMatch(patch: Record<string, unknown>) {
+  return { ...fixture, matches: [{ ...fixture.matches[0], ...patch }] };
+}
+
+test("parseSearchResponse drops a match whose token is a code block", () => {
+  const r = parseSearchResponse(withMatch({ token: "```dataviewjs\nalert(1)\n```" }), "q");
+  assert.equal(r.matches.length, 0);
+});
+
+test("parseSearchResponse drops non-reference tokens and odd books", () => {
+  const bad: Record<string, unknown>[] = [
+    { token: "[link](https://example.com)" },
+    { token: "{John 3:16}\n# heading" },
+    { token: "{John 3:16} extra" },
+    { token: "{John 3:16, kjv}" },
+    { book: "John\n```" },
+    { book: "<b>John</b>" },
+    { book: "J".repeat(60) },
+    { chapter: 0 },
+    { verse: 1.5 },
+    { score: Number.NaN },
+  ];
+  for (const patch of bad) {
+    assert.equal(parseSearchResponse(withMatch(patch), "q").matches.length, 0, JSON.stringify(patch));
+  }
+});
+
+test("parseSearchResponse keeps valid reference tokens", () => {
+  const good = ["{John 3:16}", "{1 John 1:9}", "{Song of Solomon 2:4}", "{Psalm 23:1-3}", "{John 3:16, KJV}", "{John 3:16,BSB}"];
+  for (const token of good) {
+    assert.equal(parseSearchResponse(withMatch({ token }), "q").matches.length, 1, token);
+  }
+});
+
+test("parseSearchResponse blanks an unsafe abbr", () => {
+  const r = parseSearchResponse({ ...fixture, abbr: "KJV\n```\n# x" }, "q");
+  assert.equal(r.abbr, "");
+  assert.equal(r.matches.length, 1);
+});
